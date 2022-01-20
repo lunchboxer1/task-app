@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const validator = require('validator');
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
+const Task = require('./task')
 
 const userSchema = new mongoose.Schema({
   name: {
@@ -50,6 +51,12 @@ const userSchema = new mongoose.Schema({
   }],
 });
 
+userSchema.virtual('tasks', {
+  ref: 'Task',
+  localField: '_id',
+  foreignField: 'owner',
+})
+
 userSchema.methods.generateAuthToken = async function () {
   const user = this;
   const token = jwt.sign({ _id: user._id.toString() }, 'thisismynewcourse');
@@ -59,6 +66,17 @@ userSchema.methods.generateAuthToken = async function () {
   
   return token;
 
+}
+
+//Method will get called by express internally every time that object is stringified by app
+userSchema.methods.toJSON = function () {
+  const user = this;
+  const userObject = user.toObject();
+
+  delete userObject.password;
+  delete userObject.tokens;
+
+  return userObject;
 }
 
 userSchema.statics.findByCredentials = async (email, password) => {
@@ -81,10 +99,9 @@ userSchema.statics.findByCredentials = async (email, password) => {
 }
 
 //Has the plain text password before saving
+//Gets called each time the svae method is executed.
 userSchema.pre('save', async function (next) {
   const user = this;
-  // console.log('Just before saving');
-  // console.log(user);
 
   if (user.isModified('password')) {
     user.password = await bcrypt.hash(user.password, 8);
@@ -94,6 +111,15 @@ userSchema.pre('save', async function (next) {
   next();
 
 });
+
+// Delete user's tasks when user is deleted
+userSchema.pre('remove', async function (next) {
+  const user = this;
+  await Task.deleteMany({ owner: user._id })
+
+  next();
+  
+})
 
 const User = mongoose.model('User', userSchema);
 
