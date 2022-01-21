@@ -41,7 +41,6 @@ const userSchema = new mongoose.Schema({
         throw new Error('Age must be a positive number.');
       }
     }
-    
   },
   tokens: [{
     token: {
@@ -49,7 +48,11 @@ const userSchema = new mongoose.Schema({
       required: true,
     }
   }],
-});
+  },
+  //Options argument 
+  {
+    timestamps: true,
+  });
 
 userSchema.virtual('tasks', {
   ref: 'Task',
@@ -118,7 +121,7 @@ userSchema.pre('remove', async function (next) {
   await Task.deleteMany({ owner: user._id })
 
   next();
-  
+
 })
 
 const User = mongoose.model('User', userSchema);
