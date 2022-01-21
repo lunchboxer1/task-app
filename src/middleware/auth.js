@@ -4,7 +4,7 @@ const User = require('../models/user');
 const auth = async (req, res, next) => {
   try {
     const token = req.header('Authorization').replace('Bearer ', '');
-    const decoded = jwt.verify(token, 'thisismynewcourse');
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     const user = await User.findOne({ _id: decoded._id, 'tokens.token': token });
 
     if (!user) {
@@ -22,5 +22,3 @@ const auth = async (req, res, next) => {
 }
 
 module.exports = auth;
-
-//eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2MWU2MjFmYTViM2E4NmJhYWFiYmEyYWIiLCJpYXQiOjE2NDI0NzE5MzB9._0UQviU2Pcm0jko-GaPLHHlehn1uasv85q4KQ2J1k0E

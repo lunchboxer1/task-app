@@ -1,17 +1,20 @@
 const express = require('express');
+const multer = require('multer');
+const sharp = require('sharp');
 const router = new express.Router();
 const auth = require('../middleware/auth')
 const User = require('../models/user');
-const multer = require('multer');
-const sharp = require('sharp');
+const { sendWelcomeEmail, sendCancellationEmail } = require('../emails/account');
 
 router.post('/users', async (req, res) => {
-  const user = new User(req.body);
+  
 
   try{
+    const user = new User(req.body);
+    
     await user.save()
+    sendWelcomeEmail(user.email, user.name);
     const token = await user.generateAuthToken();
-
     res.status(201).send({ user, token });  //Note this line will only run if the await is successful
 
   } catch (e) {
@@ -89,6 +92,7 @@ router.patch('/users/:id', auth, async (req, res) => {
 
 router.delete('/users/me', auth, async (req, res) => {
   try {
+    sendCancellationEmail(req.user.email, req.user.name);
     await req.user.remove();
     res.send();
 
