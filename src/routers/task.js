@@ -1,4 +1,5 @@
 const express = require('express');
+
 const router = new express.Router();
 const Task = require('../models/task');
 const auth = require('../middleware/auth');
@@ -23,8 +24,8 @@ router.post('/tasks', auth, async (req, res) => {
 // GET /tasks?limit=int&skip=int
 // GET /tasks?sortBy=createdAt_asc(desc)&
 router.get('/tasks', auth, async (req, res) => {
-  const match = {}
-  const sort = {}
+  const match = {};
+  const sort = {};
 
   if (req.query.completed) {
     match.completed = req.query.completed === 'true';
@@ -40,16 +41,13 @@ router.get('/tasks', auth, async (req, res) => {
       path: 'tasks',
       match,
       options: {
-        limit: parseInt(req.query.limit),
-        skip: parseInt(req.query.skip),
-        sort
-      }
+        limit: parseInt(req.query.limit, 10),
+        skip: parseInt(req.query.skip, 10),
+      },
     });
     res.send(req.user.tasks);
-
   } catch (e) {
     res.status(500).send(e);
-
   }
 });
 
@@ -58,16 +56,14 @@ router.get('/tasks/:id', auth, async (req, res) => {
 
   try {
     const task = await Task.findOne({ _id, owner: req.user._id });
-    
-    if(!task) {
+
+    if (!task) {
       return res.status(404).send();
     }
 
     res.send(task);
-
   } catch (e) {
     res.status(500).send();
-
   }
 });
 

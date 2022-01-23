@@ -1,25 +1,24 @@
 const express = require('express');
 const multer = require('multer');
 const sharp = require('sharp');
+
 const router = new express.Router();
-const auth = require('../middleware/auth')
+const auth = require('../middleware/auth');
 const User = require('../models/user');
 const { sendWelcomeEmail, sendCancellationEmail } = require('../emails/account');
 
 router.post('/users', async (req, res) => {
-  
-
-  try{
+  try {
     const user = new User(req.body);
-    
-    await user.save()
-    sendWelcomeEmail(user.email, user.name);
-    const token = await user.generateAuthToken();
-    res.status(201).send({ user, token });  //Note this line will only run if the await is successful
 
+    await user.save();
+    // sendWelcomeEmail(user.email, user.name);
+    const token = await user.generateAuthToken();
+
+    // Note the next line will only run if the previous await is successful
+    res.status(201).send({ user, token });
   } catch (e) {
     res.status(400).send(e);
-
   }
 });
 
@@ -27,28 +26,25 @@ router.post('/users/login', async (req, res) => {
   try {
     const user = await User.findByCredentials(req.body.email, req.body.password)
     const token = await user.generateAuthToken();
-    
+
     res.send({ user, token });
-  
-  } catch (e) {    
+  } catch (e) {
     res.status(400).send();
-
   }
-
 });
 
-router.post('/users/logout', auth, async(req, res) => {
+router.post('/users/logout', auth, async (req, res) => {
   try {
-    req.user.tokens = req.user.tokens.filter((token) => {
-      return token.token !== req.token;
-    });
+    // req.user.tokens = req.user.tokens.filter((token) => {
+    //   return token.token !== req.token;
+    // });
+    req.user.tokens = req.user.tokens.filter((token) => token.token !== req.token);
+
     await req.user.save();
 
     res.send();
-
   } catch (e) {
     res.status(500).send();
-
   }
 });
 
@@ -59,7 +55,6 @@ router.post('/users/logoutAll', auth, async(req, res) => {
     res.send();
   } catch (e) {
     res.send(500);
-
   }
 });
 
@@ -70,35 +65,36 @@ router.get('/users/me', auth, async (req, res) => {
 router.patch('/users/:id', auth, async (req, res) => {
   const updates = Object.keys(req.body);
   const allowedUpdates = ['name', 'email', 'password', 'age'];
-  const isValidOperation = updates.every((update) => {
-    return allowedUpdates.includes(update);
-
-  })
+  // const isValidOperation = updates.every((update) => {
+  //   return allowedUpdates.includes(update);
+  // })
+  const isValidOperation = updates.every((update) => allowedUpdates.includes(update));
 
   if (!isValidOperation) {
-    return res.status(400).send({error: "Invalid updates!"});
+    return res.status(400).send({ error: 'Invalid updates!' });
   }
 
-  try{
-    updates.forEach((update) => req.user[update] = req.body[update]);
+  try {
+    updates.forEach((update) => {
+      req.user[update] = req.body[update];
+      return req.user[update];
+    });
+
     await req.user.save();
     res.send(req.user);
-  
   } catch (e) {
-    res.status(400).send(e)
-
+    res.status(400).send(e);
   }
 });
 
 router.delete('/users/me', auth, async (req, res) => {
   try {
-    sendCancellationEmail(req.user.email, req.user.name);
+    // sendCancellationEmail(req.user.email, req.user.name);
     await req.user.remove();
     res.send();
-
   } catch (e) {
+    console.log(e)
     res.status(500).send();
-
   }
 });
 
@@ -108,28 +104,25 @@ const upload = multer({
     fileSize: 1000000,
   },
   fileFilter(req, file, cb) {
-    //cb(new Error('File must be a pdf.')) // reject
+    // cb(new Error('File must be a pdf.')) // reject
     // cb(undefined, true); //Accept
     if (!file.originalname.match(/\.(jpg|jpeg|png)$/)) {
       return cb(new Error('Please upload an image.'));
-
     }
 
     cb(undefined, true);
+  },
+});
 
-  }
-})
-
-router.post('/users/me/avatar', auth, upload.single('avatar'), async (req, res) =>{
+router.post('/users/me/avatar', auth, upload.single('avatar'), async (req, res) => {
   // req.user.avatar = req.file.buffer;
 
   const buffer = await sharp(req.file.buffer).resize({ width: 250, height: 250 }).png().toBuffer();
   req.user.avatar = buffer;
 
   await req.user.save();
-  
-  res.send();
 
+  res.send();
 }, (error, req, res, next) => {
   res.status(400).send({ error: error.message });
 });
@@ -139,10 +132,8 @@ router.delete('/users/me/avatar', auth, async (req, res) => {
     req.user.avatar = undefined;
     await req.user.save();
     res.send();
-
   } catch (e) {
     res.status(400).send();
-
   }
 });
 
@@ -152,16 +143,12 @@ router.get('/users/:id/avatar', async (req, res) => {
 
     if (!user || !user.avatar) {
       throw new Error();
-    
     }
     res.set('Content-Type', 'image/png');
     res.send(user.avatar);
-
-
   } catch (e) {
     res.status(404).send();
-
   }
-})
+});
 
 module.exports = router;
