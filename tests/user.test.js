@@ -1,24 +1,9 @@
 const request = require('supertest');
-const jwt = require('jsonwebtoken');
-const mongoose = require('mongoose');
 const app = require('../src/app');
 const User = require('../src/models/user');
+const { userOneId, userOne, setUpDatabase } = require('./fixtures/db')
 
-const userOneId = new mongoose.Types.ObjectId();
-const userOne = {
-  _id: userOneId,
-  name: 'Evie',
-  email: 'eevee@email.com',
-  password: 'Red123!',
-  tokens: [{
-    token: jwt.sign({ _id: userOneId }, process.env.JWT_SECRET),
-  }],
-};
-
-beforeEach(async () => {
-  await User.deleteMany();
-  await new User(userOne).save();
-});
+beforeEach(setUpDatabase);
 
 test('Should sign up a new user', async () => {
   const response = await request(app).post('/users').send({
@@ -27,7 +12,6 @@ test('Should sign up a new user', async () => {
     password: 'Red123!',
   }).expect(201);
 
-  // Potential things to do
   const user = await User.findById(response.body.user._id);
   expect(user).not.toBeNull();
 
@@ -39,13 +23,20 @@ test('Should sign up a new user', async () => {
     },
     token: user.tokens[0].token,
   });
+
+  expect(user.password).not.toBe('Red123!');
 });
 
-test('Should log-in exsisting user.', async () => {
-  await request(app).post('/users/login').send({
+test('Should login exsisting user.', async () => {
+  const response = await request(app).post('/users/login').send({
     email: userOne.email,
     password: userOne.password,
   }).expect(200);
+
+  const user = await User.findById(userOne._id);
+  expect(user).not.toBeNull();
+
+  expect(response.body.token).toBe(user.tokens[1].token);
 });
 
 test('Should not log in non-exsistent user.', async () => {
@@ -77,6 +68,9 @@ test('Should delete account for user.', async () => {
     .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
     .send()
     .expect(200);
+
+  const user = await User.findById(userOne._id);
+  expect(user).toBeNull();
 });
 
 test('Should not delete account for unauthenitcated user.', async () => {
@@ -84,4 +78,38 @@ test('Should not delete account for unauthenitcated user.', async () => {
     .delete('/users/me')
     .send()
     .expect(401);
+});
+
+test('should upload avatar image.', async () => {
+  await request(app)
+    .post('/users/me/avatar')
+    .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
+    .attach('avatar', 'tests/fixtures/profile-pic.jpg')
+    .expect(200);
+
+  const user = await User.findById(userOneId);
+  expect(user.avatar).toEqual(expect.any(Buffer));
+});
+
+test('Should update valid user fields', async () => {
+  await request(app)
+    .patch('/users/me')
+    .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
+    .send({
+      name: 'Eevee',
+    })
+    .expect(200);
+
+  const user = await User.findById(userOneId);
+  expect(user.name).toEqual('eevee');
+});
+
+test('Should not update invalid user fields', async () => {
+  await request(app)
+    .patch('/users/me')
+    .set('Authorization', `Bearer ${userOne.tokens[0].token}`)
+    .send({
+      location: 'S. Bend',
+    })
+    .expect(400);
 });

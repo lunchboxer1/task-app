@@ -12,7 +12,7 @@ router.post('/users', async (req, res) => {
     const user = new User(req.body);
 
     await user.save();
-    // sendWelcomeEmail(user.email, user.name);
+    sendWelcomeEmail(user.email, user.name);
     const token = await user.generateAuthToken();
 
     // Note the next line will only run if the previous await is successful
@@ -24,7 +24,7 @@ router.post('/users', async (req, res) => {
 
 router.post('/users/login', async (req, res) => {
   try {
-    const user = await User.findByCredentials(req.body.email, req.body.password)
+    const user = await User.findByCredentials(req.body.email, req.body.password);
     const token = await user.generateAuthToken();
 
     res.send({ user, token });
@@ -48,7 +48,7 @@ router.post('/users/logout', auth, async (req, res) => {
   }
 });
 
-router.post('/users/logoutAll', auth, async(req, res) => {
+router.post('/users/logoutAll', auth, async (req, res) => {
   try {
     req.user.tokens = [];
     await req.user.save();
@@ -89,11 +89,11 @@ router.patch('/users/:id', auth, async (req, res) => {
 
 router.delete('/users/me', auth, async (req, res) => {
   try {
-    // sendCancellationEmail(req.user.email, req.user.name);
+    sendCancellationEmail(req.user.email, req.user.name);
     await req.user.remove();
     res.send();
   } catch (e) {
-    console.log(e)
+    console.log(e);
     res.status(500).send();
   }
 });
